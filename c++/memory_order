@@ -1,0 +1,48 @@
+1. std::memory_order_relaxed
+    宽松操作：仅保证原子操作自身的原子性，对其他读写操作不做任何同步，亦无顺序上的限制
+
+2. std::memory_order_release
+    void release_software(int *data) {
+        int a = 100;                // line 1
+        int c = 200;                // line 2
+        if (!data) {
+            data = new int[100];    // line 3
+        }
+        has_release.store(true, std::memory_order_release); // line 4
+    }
+    写顺序保证：在本行代码之前, 有任何写内存的操作，都是不能放到本行语句之后的
+    尽管要求{1,2,3}代码的执行不能放到4的后面，但是{1,2,3}本身是可以被乱序的
+
+3. std::memory_order_acquire
+    void acquire_software(void) {
+        while (!has_release.load(std::memory_order_acquire));
+        int x = *data;
+    }
+    读顺序的保证：后续的读操作都不能放到这条指令之前
+
+4. std::memory_order_consume
+    std::atomic<int*> global_addr{nullptr};
+    void func(int *data) {
+        int *addr = global_addr.load(std::memory_order_consume);
+        int d = *data;
+        int f = *(data+1);
+        if (addr) {
+            int x = *addr;
+    }
+   读顺序的削弱：要求后面依赖于本次形成读则不能乱序
+   由于global_addr, addr, x形成了读依赖，那么这时候，这几个变量是不能乱序的
+   但是d,f是可以放到int *addr = global_addr.load(std::memory_order_consume);前面的
+
+   3.1 区别
+   std::memory_order_acquire 要求后面所有的读都不得提前, 是针对所有的读
+   std::memory_order_consume 要求后面依赖于本次形成读则不能乱序,只是要求依赖于consume这条语句的读写不得乱序
+
+5. std::memory_order_acq_rel
+   std::memory_order_release 和 std::memory_order_acquire 同时生效
+
+6. std::memory_order_seq_cst
+   全部存取都按顺序执行
+
+
+参考：
+https://www.cnblogs.com/ishen/p/13200838.html
